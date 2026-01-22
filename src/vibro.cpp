@@ -108,12 +108,13 @@ void vibro_pulse(VibroType type) {
 
     switch (type) {
         case VIBRO_SOFT:
-            // Предупреждающая вибрация для FAR — двойной клик
-            // Эффект 7 = Double Click 100% (встроенный паттерн)
-            g_drv.setWaveform(0, 7);   // Double Click
-            g_drv.setWaveform(1, 0);   // Конец
-            g_vibro_off_time = millis() + 300;
-            type_name = "SOFT (effect 7 - double click)";
+            // Предупреждающая вибрация для FAR — сильная, но короче чем ALERT
+            // Два сильных buzz подряд
+            g_drv.setWaveform(0, 14);  // Strong Buzz 100%
+            g_drv.setWaveform(1, 14);  // Strong Buzz 100%
+            g_drv.setWaveform(2, 0);   // Конец
+            g_vibro_off_time = millis() + 400;
+            type_name = "SOFT (effect 14x2 - double buzz)";
             break;
 
         case VIBRO_STRONG:
