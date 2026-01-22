@@ -3,6 +3,10 @@
 #include <Wire.h>
 #include <Adafruit_DRV2605.h>
 
+// Указываем тип PMU чипа перед включением библиотеки
+#define XPOWERS_CHIP_AXP2101
+#include <XPowersLib.h>
+
 // ========================================
 // DRV2605L Haptic Driver
 // ========================================
@@ -23,6 +27,9 @@
 // Объект драйвера
 static Adafruit_DRV2605 g_drv;
 
+// Объект управления питанием AXP2101
+static XPowersPMU g_pmu;
+
 // Флаг инициализации
 static bool g_initialized = false;
 
@@ -33,33 +40,65 @@ static unsigned long g_vibro_off_time = 0;
 // Инициализация
 // ========================================
 void vibro_init() {
-    Serial.println("[VIBRO] Initializing DRV2605L...");
+    Serial.println("[VIBRO] ===== INIT START =====");
+    Serial.printf("[VIBRO] I2C pins: SDA=%d, SCL=%d\n", I2C_SDA, I2C_SCL);
 
     // Инициализируем I2C на правильных пинах T-Watch-S3
     Wire.begin(I2C_SDA, I2C_SCL);
+    Serial.println("[VIBRO] Wire.begin() done");
+
+    // ========================================
+    // Инициализация AXP2101 для включения питания DRV2605
+    // ========================================
+    Serial.println("[VIBRO] Initializing AXP2101 PMU...");
+    if (!g_pmu.begin(Wire, AXP2101_SLAVE_ADDRESS, I2C_SDA, I2C_SCL)) {
+        Serial.println("[VIBRO] WARNING: AXP2101 not found!");
+    } else {
+        Serial.println("[VIBRO] AXP2101 found, enabling BLDO2 for DRV2605...");
+        // Включаем BLDO2 (питание DRV2605) на 3.3V
+        g_pmu.setBLDO2Voltage(3300);
+        g_pmu.enableBLDO2();
+        Serial.println("[VIBRO] BLDO2 enabled at 3.3V");
+        delay(50);  // Даём время на стабилизацию питания
+    }
+
+    // Сканируем I2C шину для проверки
+    Serial.println("[VIBRO] Scanning I2C bus...");
+    for (uint8_t addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+            Serial.printf("[VIBRO] Found device at 0x%02X\n", addr);
+        }
+    }
 
     // Инициализируем DRV2605L
+    Serial.println("[VIBRO] Calling g_drv.begin()...");
     if (!g_drv.begin()) {
         Serial.println("[VIBRO] ERROR: DRV2605L not found!");
         g_initialized = false;
         return;
     }
+    Serial.println("[VIBRO] g_drv.begin() OK");
 
     g_initialized = true;
 
-    // Выбираем библиотеку эффектов (1 = для ERM моторов)
+    // T-Watch-S3 использует ERM мотор, библиотека 1
     g_drv.selectLibrary(1);
+    Serial.println("[VIBRO] selectLibrary(1) done - ERM mode");
 
     // Устанавливаем режим внутреннего триггера
     g_drv.setMode(DRV2605_MODE_INTTRIG);
+    Serial.println("[VIBRO] setMode(INTTRIG) done");
 
-    Serial.println("[VIBRO] DRV2605L initialized OK");
+    Serial.println("[VIBRO] ===== INIT OK =====");
 }
 
 // ========================================
 // Запуск вибрации определённого типа
 // ========================================
 void vibro_pulse(VibroType type) {
+    Serial.printf("[VIBRO] vibro_pulse called, type=%d, g_initialized=%d\n", type, g_initialized);
+
     if (!g_initialized) {
         Serial.println("[VIBRO] Not initialized!");
         return;
@@ -104,9 +143,9 @@ void vibro_pulse(VibroType type) {
     }
 
     // Запускаем вибрацию
+    Serial.println("[VIBRO] Calling g_drv.go()...");
     g_drv.go();
-
-    Serial.printf("[VIBRO] Pulse %s\n", type_name);
+    Serial.printf("[VIBRO] go() done, off_time=%lu, Pulse %s\n", g_vibro_off_time, type_name);
 }
 
 // ========================================
