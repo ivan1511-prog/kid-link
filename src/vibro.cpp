@@ -69,12 +69,12 @@ void vibro_pulse(VibroType type) {
 
     switch (type) {
         case VIBRO_SOFT:
-            // Мягкая вибрация — один короткий импульс
-            // Эффект 47 = Buzz 1 (умеренное жужжание)
-            g_drv.setWaveform(0, 47);
+            // Мягкая вибрация — один импульс
+            // Эффект 14 = Strong Buzz 100% (ощутимый)
+            g_drv.setWaveform(0, 14);
             g_drv.setWaveform(1, 0);   // Конец
             g_vibro_off_time = millis() + 200;
-            type_name = "SOFT (effect 47)";
+            type_name = "SOFT (effect 14)";
             break;
 
         case VIBRO_STRONG:
